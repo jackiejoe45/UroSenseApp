@@ -9,6 +9,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   late List<CameraDescription> cameras;
+  String currentUser = "John Doe"; // This will be updated based on selection
 
   @override
   void initState() {
@@ -32,11 +33,52 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   Widget build(BuildContext context) {
     if (_controller == null || !_controller!.value.isInitialized) {
-      return const Center(child: CircularProgressIndicator());
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
     }
+
     return Scaffold(
       appBar: AppBar(title: const Text("Capture Test Strip")),
-      body: CameraPreview(_controller!),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Current User: $currentUser',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Darkened background
+                Container(color: Colors.black87),
+                // Camera preview in center strip
+                FractionallySizedBox(
+                  widthFactor: 0.2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 2.0,
+                      ),
+                    ),
+                    child: ClipRect(
+                      child: SizedBox(
+                        width: double.infinity, // Fill the width
+                        height: double.infinity, // Fill the height
+                        child: CameraPreview(_controller!),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           try {
