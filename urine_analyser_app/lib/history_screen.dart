@@ -37,18 +37,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Test Details - ${item['date']}'),
+        title: Text('Test Details\n${item['record_time'] ?? 'N/A'}'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Time: ${item['time'] ?? 'N/A'}'),
+              Text('Username: ${item['username'] ?? 'N/A'}'),
               const Divider(),
               Text('Glucose: ${item['glucose'] ?? 'N/A'} mg/dL'),
               Text('Protein: ${item['protein'] ?? 'N/A'} mg/dL'),
               Text('pH: ${item['ph'] ?? 'N/A'}'),
-              // Add more biomarkers as needed
+              Text('Blood: ${item['blood'] ?? 'N/A'}'),
+              Text('Ketones: ${item['ketones'] ?? 'N/A'}'),
+              Text('Nitrite: ${item['nitrite'] ?? 'N/A'}'),
+              Text('Leukocytes: ${item['leukocytes'] ?? 'N/A'}'),
+              Text('Specific Gravity: ${item['specific_gravity'] ?? 'N/A'}'),
+              Text('Bilirubin: ${item['bilirubin'] ?? 'N/A'}'),
+              Text('Urobilinogen: ${item['urobilinogen'] ?? 'N/A'} µmol/L'),
             ],
           ),
         ),
@@ -78,14 +84,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 return Card(
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
-                    title: Text('Test ${index + 1}'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Date: ${item['date'] ?? 'N/A'}'),
-                        Text('Time: ${item['time'] ?? 'N/A'}'),
-                      ],
-                    ),
+                    title: Text(item['username'] ?? 'N/A'),
+                    subtitle: Text(item['record_time'] ?? 'N/A'),
                     trailing: const Icon(Icons.arrow_forward_ios),
                     onTap: () => _showDetailsDialog(item),
                   ),
