@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
+import 'main.dart'; // Add this import for HomeScreen
 
 class UserScreen extends StatefulWidget {
   const UserScreen({super.key});
@@ -10,26 +11,34 @@ class UserScreen extends StatefulWidget {
 }
 
 class _UserScreenState extends State<UserScreen> {
-  final _nameController = TextEditingController();
+  final _nameController =
+      TextEditingController(text: 'Ben'); // Default username
   final _ipController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     final settings = Provider.of<SettingsProvider>(context, listen: false);
-    _nameController.text = settings.currentUser;
     _ipController.text = settings.ipAddress;
+  }
+
+  void _refreshData() {
+    // Find and refresh DashboardScreen and HistoryScreen
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
+            TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: 'User Name',
@@ -37,7 +46,7 @@ class _UserScreenState extends State<UserScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
+            TextFormField(
               controller: _ipController,
               decoration: const InputDecoration(
                 labelText: 'Server IP Address',
@@ -46,13 +55,14 @@ class _UserScreenState extends State<UserScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: () {
                 final settings =
                     Provider.of<SettingsProvider>(context, listen: false);
-                await settings.setCurrentUser(_nameController.text);
-                await settings.setIpAddress(_ipController.text);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings saved')),
+                settings.setCurrentUser(_nameController.text);
+                settings.setIpAddress(_ipController.text);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
                 );
               },
               child: const Text('Save Settings'),

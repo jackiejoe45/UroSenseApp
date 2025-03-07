@@ -14,6 +14,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? latestData;
   bool isLoading = true;
+  String? error;
 
   @override
   void initState() {
@@ -22,20 +23,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> fetchLatestResults() async {
+    if (!mounted) return;
+
+    setState(() {
+      isLoading = true;
+      error = null;
+    });
+
     try {
       final username = context.read<SettingsProvider>().currentUser;
-      final response = await http.get(
-          Uri.parse('${context.read<SettingsProvider>().ipAddress}/lab_results?username=$username'));
+      final baseUrl = context.read<SettingsProvider>().ipAddress;
+
+      final response = await http
+          .get(Uri.parse('$baseUrl/lab_results?username=$username'))
+          .timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
           latestData = data.isNotEmpty ? data.first : null;
           isLoading = false;
         });
+      } else {
+        setState(() {
+          error = 'Server error: ${response.statusCode}';
+          isLoading = false;
+        });
       }
     } catch (e) {
-      print('Error fetching results: $e');
-      setState(() => isLoading = false);
+      if (!mounted) return;
+      setState(() {
+        error = e.toString();
+        isLoading = false;
+      });
     }
   }
 
@@ -95,50 +117,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (latestData == null) {
-      return const Scaffold(
-        body: Center(child: Text('No data available')),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(latestData!['username'] ?? 'User'),
-            Text(
-              latestData!['record_time'] ?? 'No time',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ),
+        title: latestData != null
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(latestData!['username'] ?? 'User'),
+                  Text(
+                    latestData!['record_time'] ?? 'No time',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              )
+            : const Text('Dashboard'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildBiomarkerCard('Protein', latestData!['protein'], 'mg/dl',
-              'assets/protein-icon.png', 'assets/protein-chart.png'),
-          _buildBiomarkerCard(
-              'Specific Gravity',
-              latestData!['specific_gravity'],
-              '',
-              'assets/specific-gravity-icon.png',
-              'assets/specific-gravity-chart.png'),
-          _buildBiomarkerCard('pH', latestData!['ph'], '', 'assets/ph-icon.png',
-              'assets/ph-chart.png'),
-          _buildBiomarkerCard('Glucose', latestData!['glucose'], 'mg/dl',
-              'assets/glucose-icon.png', 'assets/glucose-chart.png'),
-          _buildBiomarkerCard('Blood', latestData!['blood'], '',
-              'assets/blood-icon.png', 'assets/blood-chart.png'),
-        ],
-      ),
+      body: error != null
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Error: $error'),
+                  ElevatedButton(
+                    onPressed: fetchLatestResults,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          : isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : latestData == null
+                  ? const Center(child: Text('No data available'))
+                  : ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        _buildBiomarkerCard(
+                            'Protein',
+                            latestData!['protein'],
+                            'mg/dl',
+                            'assets/protein-icon.png',
+                            'assets/protein-chart.png'),
+                        _buildBiomarkerCard(
+                            'Specific Gravity',
+                            latestData!['specific_gravity'],
+                            '',
+                            'assets/specific-gravity-icon.png',
+                            'assets/specific-gravity-chart.png'),
+                        _buildBiomarkerCard('pH', latestData!['ph'], '',
+                            'assets/ph-icon.png', 'assets/ph-chart.png'),
+                        _buildBiomarkerCard(
+                            'Glucose',
+                            latestData!['glucose'],
+                            'mg/dl',
+                            'assets/glucose-icon.png',
+                            'assets/glucose-chart.png'),
+                        _buildBiomarkerCard('Blood', latestData!['blood'], '',
+                            'assets/blood-icon.png', 'assets/blood-chart.png'),
+                      ],
+                    ),
     );
   }
 }

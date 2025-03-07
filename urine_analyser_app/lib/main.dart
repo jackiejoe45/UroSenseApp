@@ -5,6 +5,7 @@ import 'history_screen.dart';
 import 'user_screen.dart';
 import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
+import 'theme/app_theme.dart';
 
 void main() {
   runApp(
@@ -56,9 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        backgroundColor: Colors.blue,
-        selectedItemColor: Color.fromARGB(255, 14, 214, 7),
-        unselectedItemColor: Color.fromARGB(255, 0, 0, 0),
+        backgroundColor: AppTheme.primaryColor,
+        selectedItemColor: AppTheme.selectedColor,
+        unselectedItemColor: AppTheme.unselectedColor,
         items: [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),

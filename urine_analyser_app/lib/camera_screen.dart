@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:provider/provider.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as path;
 import 'providers/settings_provider.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -22,9 +24,32 @@ class _CameraScreenState extends State<CameraScreen> {
 
   Future<void> initCamera() async {
     cameras = await availableCameras();
-    _controller = CameraController(cameras[0], ResolutionPreset.high);
+    _controller = CameraController(
+      cameras[0],
+      ResolutionPreset.high,
+      enableAudio: false, // Disable audio
+    );
     await _controller!.initialize();
     setState(() {});
+  }
+
+  Future<String> _takePicture() async {
+    if (!_controller!.value.isInitialized) {
+      return '';
+    }
+
+    final directory = await getApplicationDocumentsDirectory();
+    final String fileName = '${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final String filePath = path.join(directory.path, fileName);
+
+    try {
+      XFile image = await _controller!.takePicture();
+      await image.saveTo(filePath);
+      return filePath;
+    } catch (e) {
+      print("Error taking picture: $e");
+      return '';
+    }
   }
 
   @override
@@ -41,6 +66,12 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
 
+    // Calculate aspect ratio
+    final size = MediaQuery.of(context).size;
+    final deviceRatio = size.width / size.height;
+    final xScale = _controller!.value.aspectRatio / deviceRatio;
+    final scale = 1 / (xScale > 1 ? xScale : 1);
+
     return Scaffold(
       appBar: AppBar(title: const Text("Capture Test Strip")),
       body: Column(
@@ -56,24 +87,30 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Darkened background
-                Container(color: Colors.black87),
-                // Camera preview in center strip
-                FractionallySizedBox(
-                  widthFactor: 0.2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: Colors.white,
-                        width: 2.0,
+                Transform.scale(
+                  scale: scale,
+                  child: Center(
+                    child: CameraPreview(_controller!),
+                  ),
+                ),
+                // Guide overlay
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.symmetric(
+                      horizontal: BorderSide(
+                        color: Colors.black.withOpacity(0.5),
+                        width: MediaQuery.of(context).size.height * 0.3,
                       ),
                     ),
-                    child: ClipRect(
-                      child: SizedBox(
-                        width: double.infinity, // Fill the width
-                        height: double.infinity, // Fill the height
-                        child: CameraPreview(_controller!),
-                      ),
+                  ),
+                ),
+                // Center strip guide
+                Container(
+                  width: MediaQuery.of(context).size.width * 0.2,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.white,
+                      width: 2.0,
                     ),
                   ),
                 ),
@@ -84,11 +121,11 @@ class _CameraScreenState extends State<CameraScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          try {
-            final image = await _controller!.takePicture();
-            print("Image saved at: ${image.path}");
-          } catch (e) {
-            print("Error taking picture: $e");
+          final imagePath = await _takePicture();
+          if (imagePath.isNotEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Image saved to: $imagePath')),
+            );
           }
         },
         child: const Icon(Icons.camera),
