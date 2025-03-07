@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:provider/provider.dart';
+import 'package:urine_analyser_app/providers/settings_provider.dart';
 
 class HistoryScreen extends StatefulWidget {
+  const HistoryScreen({super.key});
+
   @override
   _HistoryScreenState createState() => _HistoryScreenState();
 }
@@ -19,8 +23,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Future<void> fetchHistory() async {
     try {
-      final response =
-          await http.get(Uri.parse('http://172.20.124.54:5000/lab_results'));
+      final username = context.read<SettingsProvider>().currentUser;
+      final response = await http.get(
+          Uri.parse('${context.read<SettingsProvider>().ipAddress}/lab_results?username=$username'));
       if (response.statusCode == 200) {
         setState(() {
           historyData = json.decode(response.body);

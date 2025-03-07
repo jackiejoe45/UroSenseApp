@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:provider/provider.dart';
+import 'providers/settings_provider.dart';
 
 class CameraScreen extends StatefulWidget {
+  const CameraScreen({super.key});
+
   @override
   _CameraScreenState createState() => _CameraScreenState();
 }
@@ -9,7 +13,6 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
   late List<CameraDescription> cameras;
-  String currentUser = "John Doe"; // This will be updated based on selection
 
   @override
   void initState() {
@@ -45,7 +48,7 @@ class _CameraScreenState extends State<CameraScreen> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
-              'Current User: $currentUser',
+              'Current User: ${context.watch<SettingsProvider>().currentUser}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
