@@ -1,66 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:provider/provider.dart';
+import 'providers/settings_provider.dart';
 
 class UserScreen extends StatefulWidget {
+  const UserScreen({super.key});
+
   @override
   _UserScreenState createState() => _UserScreenState();
 }
 
 class _UserScreenState extends State<UserScreen> {
-  List<String> users = [];
-  bool isLoading = true;
+  final _nameController = TextEditingController();
+  final _ipController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    fetchUsers();
-  }
-
-  Future<void> fetchUsers() async {
-    try {
-      final response =
-          await http.get(Uri.parse('http://172.20.124.54:5000/users'));
-      if (response.statusCode == 200) {
-        setState(() {
-          users = List<String>.from(json.decode(response.body));
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('Error fetching users: $e');
-      setState(() => isLoading = false);
-    }
+    final settings = Provider.of<SettingsProvider>(context, listen: false);
+    _nameController.text = settings.currentUser;
+    _ipController.text = settings.ipAddress;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Select User'),
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: users.length,
-              itemBuilder: (context, index) {
-                return ListTile(
-                  leading: const Icon(Icons.person),
-                  title: Text(users[index]),
-                  onTap: () {
-                    // Handle user selection
-                    print('Selected user: ${users[index]}');
-                  },
+      appBar: AppBar(title: const Text('Settings')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(
+                labelText: 'User Name',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _ipController,
+              decoration: const InputDecoration(
+                labelText: 'Server IP Address',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                final settings =
+                    Provider.of<SettingsProvider>(context, listen: false);
+                await settings.setCurrentUser(_nameController.text);
+                await settings.setIpAddress(_ipController.text);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Settings saved')),
                 );
               },
+              child: const Text('Save Settings'),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Add new user functionality
-          print('Add new user');
-        },
-        child: const Icon(Icons.add),
+          ],
+        ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _ipController.dispose();
+    super.dispose();
   }
 }
