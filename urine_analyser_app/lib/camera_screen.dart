@@ -66,12 +66,6 @@ class _CameraScreenState extends State<CameraScreen> {
       );
     }
 
-    // Calculate aspect ratio
-    final size = MediaQuery.of(context).size;
-    final deviceRatio = size.width / size.height;
-    final xScale = _controller!.value.aspectRatio / deviceRatio;
-    final scale = 1 / (xScale > 1 ? xScale : 1);
-
     return Scaffold(
       appBar: AppBar(title: const Text("Capture Test Strip")),
       body: Column(
@@ -84,37 +78,28 @@ class _CameraScreenState extends State<CameraScreen> {
             ),
           ),
           Expanded(
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Transform.scale(
-                  scale: scale,
-                  child: Center(
-                    child: CameraPreview(_controller!),
-                  ),
-                ),
-                // Guide overlay
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.symmetric(
-                      horizontal: BorderSide(
-                        color: Colors.black.withOpacity(0.5),
-                        width: MediaQuery.of(context).size.height * 0.3,
+            child: Container(
+              width: double.infinity,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CameraPreview(_controller!),
+                  // Vertical white rectangle guide
+                  Center(
+                    child: Container(
+                      width: MediaQuery.of(context).size.width *
+                          0.1, // Changed to 10%
+                      height: MediaQuery.of(context).size.height * 0.7,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 2.0,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                // Center strip guide
-                Container(
-                  width: MediaQuery.of(context).size.width * 0.2,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2.0,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
