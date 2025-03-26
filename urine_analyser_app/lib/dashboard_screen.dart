@@ -190,86 +190,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     // Rest of your existing status checks using numValue
-    if (title == 'Glucose') {
-      if (numValue < 0 || numValue > 1000) {
-        statusText = 'Unknown';
-        statusColor = Colors.grey;
-      } else if (numValue < 15) {
-        statusText = 'Normal';
-        statusColor = Colors.green;
-      } else if (numValue < 100) {
-        statusText = 'Caution';
-        statusColor = Colors.yellow;
-      } else {
-        statusText = 'Danger';
-        statusColor = Colors.red;
-      }
-    } else if (title == 'pH') {
-      if (numValue < 0 || numValue > 14) {
-        // pH scale limits
-        statusText = 'Unknown';
-        statusColor = Colors.grey;
-      } else if (numValue >= 4.6 && numValue <= 8.0) {
-        statusText = 'Normal';
-        statusColor = Colors.green;
-      } else if ((numValue < 4.6 && numValue >= 4.0) ||
-          (numValue > 8.0 && numValue <= 8.5)) {
-        statusText = 'Caution';
-        statusColor = Colors.yellow;
-      } else {
-        statusText = 'Danger';
-        statusColor = Colors.red;
-      }
-    } else if (title == 'Protein') {
-      if (numValue < 0 || numValue > 2000) {
-        // Unrealistic values
-        statusText = 'Unknown';
-        statusColor = Colors.grey;
-      } else if (numValue <= 14) {
-        statusText = 'Normal';
-        statusColor = Colors.green;
-      } else if (numValue <= 30) {
-        statusText = 'Caution';
-        statusColor = Colors.yellow;
-      } else {
-        statusText = 'Danger';
-        statusColor = Colors.red;
-      }
-    } else if (title == 'Blood') {
-      if (numValue < 0 || numValue > 200) {
-        // Unrealistic values
-        statusText = 'Unknown';
-        statusColor = Colors.grey;
-      } else if (numValue == 0) {
-        statusText = 'Normal';
-        statusColor = Colors.green;
-      } else if (numValue <= 50) {
-        statusText = 'Caution';
-        statusColor = Colors.yellow;
-      } else {
-        statusText = 'Danger';
-        statusColor = Colors.red;
-      }
-    } else if (title == 'Specific Gravity') {
-      if (numValue < 1.000 || numValue > 1.050) {
-        // Unrealistic values
-        statusText = 'Unknown';
-        statusColor = Colors.grey;
-      } else if (numValue >= 1.010 && numValue <= 1.030) {
-        statusText = 'Normal';
-        statusColor = Colors.green;
-      } else if ((numValue < 1.010 && numValue >= 1.000) ||
-          (numValue > 1.030 && numValue <= 1.040)) {
-        statusText = 'Caution';
-        statusColor = Colors.yellow;
-      } else {
-        statusText = 'Danger';
-        statusColor = Colors.red;
-      }
-    } else {
-      statusText = 'Unknown';
-      statusColor = Colors.grey;
-    }
+    statusText = _getStatus(title, value);
+    statusColor = _getStatusColor(title, value);
 
     return GestureDetector(
       onTap: () {
@@ -330,6 +252,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _showBiomarkerDetails(String title) {
     final biomarkerInfo = biomarkerDetails[title];
+    final value = (title == 'pH')
+        ? (latestData?['ph'])
+        : (title == 'Specific Gravity')
+            ? (latestData?['specific_gravity'])
+            : (latestData?[title.toLowerCase()]);
 
     if (biomarkerInfo != null) {
       showDialog(
@@ -340,9 +267,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Status: ${_getStatus(title, latestData?[title])}',
-                  style: TextStyle(
-                      color: _getStatusColor(title, latestData?[title]))),
+              Text('Status: ${_getStatus(title, value)}',
+                  style: TextStyle(color: _getStatusColor(title, value))),
               const SizedBox(height: 8),
               Text('Normal Range: ${biomarkerInfo.normalRange}'),
               const SizedBox(height: 8),
@@ -363,17 +289,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String _getStatus(String biomarker, dynamic value) {
-    double numValue = double.tryParse(value.toString()) ?? -1;
+    if (value == null || value.toString().isEmpty) return 'Unknown';
 
-    // Implement status checks based on numValue
-    if (numValue < 0) {
+    double numValue;
+    try {
+      numValue = double.parse(value.toString());
+    } catch (e) {
       return 'Unknown';
-    } else if (numValue < 15) {
-      return 'Normal';
-    } else if (numValue < 100) {
-      return 'Caution';
-    } else {
-      return 'Danger';
+    }
+
+    switch (biomarker) {
+      case 'Glucose':
+        if (numValue < 0 || numValue > 1000) return 'Unknown';
+        if (numValue < 15) return 'Normal';
+        if (numValue < 100) return 'Caution';
+        return 'Danger';
+
+      case 'pH':
+        if (numValue < 0 || numValue > 14) return 'Unknown';
+        if (numValue >= 4.6 && numValue <= 8.0) return 'Normal';
+        if ((numValue < 4.6 && numValue >= 4.0) ||
+            (numValue > 8.0 && numValue <= 8.5)) return 'Caution';
+        return 'Danger';
+
+      case 'Protein':
+        if (numValue < 0 || numValue > 2000) return 'Unknown';
+        if (numValue <= 14) return 'Normal';
+        if (numValue <= 30) return 'Caution';
+        return 'Danger';
+
+      case 'Blood':
+        if (numValue < 0 || numValue > 200) return 'Unknown';
+        if (numValue == 0) return 'Normal';
+        if (numValue <= 50) return 'Caution';
+        return 'Danger';
+
+      case 'Specific Gravity':
+        if (numValue < 1.000 || numValue > 1.050) return 'Unknown';
+        if (numValue >= 1.010 && numValue <= 1.030) return 'Normal';
+        if ((numValue < 1.010 && numValue >= 1.000) ||
+            (numValue > 1.030 && numValue <= 1.040)) return 'Caution';
+        return 'Danger';
+
+      default:
+        return 'Unknown';
     }
   }
 
