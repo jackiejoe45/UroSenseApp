@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:urine_analyser_app/providers/settings_provider.dart';
+import 'package:urine_analyser_app/splash_screen.dart';
 import 'camera_screen.dart';
 import 'dashboard_screen.dart';
 import 'history_screen.dart';
 import 'user_screen.dart';
-import 'package:provider/provider.dart';
-import 'providers/settings_provider.dart';
 import 'theme/app_theme.dart';
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (_) => SettingsProvider()..init(),
-      child: const MyApp(),
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -21,8 +17,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: HomeScreen(),
+    return ChangeNotifierProvider(
+      create: (context) => SettingsProvider()..init(),
+      child: MaterialApp(
+        title: 'UroSense',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          scaffoldBackgroundColor: Colors.white,
+        ),
+        home: const SplashScreen(),
+      ),
     );
   }
 }
@@ -53,14 +58,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         backgroundColor: AppTheme.primaryColor,
         selectedItemColor: AppTheme.selectedColor,
         unselectedItemColor: AppTheme.unselectedColor,
-        items: [
+        items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
             label: 'Dashboard',

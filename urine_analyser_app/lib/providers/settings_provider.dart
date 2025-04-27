@@ -3,15 +3,22 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider with ChangeNotifier {
   String _currentUser = 'Ben';
-  String _ipAddress = 'http://172.20.124.54:5000';
+  String _ipAddress = '172.20.124.54:5000';
 
   String get currentUser => _currentUser;
-  String get ipAddress => _ipAddress;
+  String get ipAddress {
+    // Ensure the IP address starts with http:// or https://
+    if (!_ipAddress.startsWith('http://') &&
+        !_ipAddress.startsWith('https://')) {
+      return 'http://$_ipAddress';
+    }
+    return _ipAddress;
+  }
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _currentUser = prefs.getString('currentUser') ?? 'Ben';
-    _ipAddress = prefs.getString('ipAddress') ?? 'http://172.20.124.54:5000';
+    _ipAddress = prefs.getString('ipAddress') ?? '172.20.124.54:5000';
     notifyListeners();
   }
 

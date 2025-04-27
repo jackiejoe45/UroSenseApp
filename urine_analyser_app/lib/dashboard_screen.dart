@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+
 import 'package:provider/provider.dart';
 import 'package:urine_analyser_app/providers/settings_provider.dart';
 
@@ -29,6 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? latestData;
   bool isLoading = true;
   String? error;
+  Timer? _refreshTimer;
 
   final Map<String, BiomarkerInfo> biomarkerDetails = {
     'Glucose': BiomarkerInfo(
@@ -77,6 +80,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     fetchLatestResults();
+    // Start auto-refresh timer
+    _refreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (mounted) {
+        fetchLatestResults();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> fetchLatestResults() async {
@@ -91,25 +106,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final username = context.read<SettingsProvider>().currentUser;
       final baseUrl = context.read<SettingsProvider>().ipAddress;
 
+      print(
+          'Attempting to connect to: $baseUrl/lab_results?username=$username');
+
       final response = await http
           .get(Uri.parse('$baseUrl/lab_results?username=$username'))
-          .timeout(const Duration(seconds: 30));
+          .timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          print('Request timed out');
+          throw TimeoutException(
+              'Connection timed out. Please check your network connection and server status.');
+        },
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (!mounted) return;
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          latestData = data.isNotEmpty ? data.first : null;
+          latestData = data.isNotEmpty ? data.last : null;
           isLoading = false;
         });
       } else {
         setState(() {
-          error = 'Server error: ${response.statusCode}';
+          error =
+              'Server error: ${response.statusCode}\nBody: ${response.body}';
           isLoading = false;
         });
       }
     } catch (e) {
+      print('Error details: $e');
       if (!mounted) return;
       setState(() {
         error = e.toString();
@@ -195,6 +225,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return GestureDetector(
       onTap: () {
+        print('Card tapped: $title'); // Debug print
         _showBiomarkerDetails(title);
       },
       child: Card(
@@ -214,7 +245,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Image.asset(iconPath, width: 24, height: 24),
                         const SizedBox(width: 8),
-                        Text(title, style: const TextStyle(fontSize: 16)),
+                        Expanded(
+                          child: Text(title,
+                              style: const TextStyle(fontSize: 16),
+                              overflow: TextOverflow.ellipsis),
+                        ),
                         const Spacer(),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -250,7 +285,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showBiomarkerDetails(String title) {
+  void _showBiomarkerDetails(String title) async {
+    print('Opening dialog for: $title'); // Debug print
+
     final biomarkerInfo = biomarkerDetails[title];
     final value = (title == 'pH')
         ? (latestData?['ph'])
@@ -258,34 +295,115 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? (latestData?['specific_gravity'])
             : (latestData?[title.toLowerCase()]);
 
+    print('Biomarker info: $biomarkerInfo'); // Debug print
+    print('Current value: $value'); // Debug print
+
     if (biomarkerInfo != null) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(biomarkerInfo.name),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Status: ${_getStatus(title, value)}',
-                  style: TextStyle(color: _getStatusColor(title, value))),
-              const SizedBox(height: 8),
-              Text('Normal Range: ${biomarkerInfo.normalRange}'),
-              const SizedBox(height: 8),
-              Text('Caution: ${biomarkerInfo.caution}'),
-              const SizedBox(height: 8),
-              Text('Danger: ${biomarkerInfo.danger}'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+      // Fetch prediction data
+      final username = context.read<SettingsProvider>().currentUser;
+      final baseUrl = context.read<SettingsProvider>().ipAddress;
+      final biomarker = title.toLowerCase().replaceAll(' ', '_');
+
+      print('Fetching prediction for: $biomarker'); // Debug print
+      print(
+          'Using URL: $baseUrl/predict/$biomarker?username=$username'); // Debug print
+
+      try {
+        final response = await http.get(
+          Uri.parse('$baseUrl/predict/$biomarker?username=$username'),
+        );
+
+        print(
+            'Prediction response status: ${response.statusCode}'); // Debug print
+        print('Prediction response body: ${response.body}'); // Debug print
+
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body);
+          final imageBytes = base64Decode(data['image']);
+
+          print('Successfully decoded image'); // Debug print
+
+          if (!mounted) return; // Add this safety check
+
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(biomarkerInfo.name),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Status: ${_getStatus(title, value)}',
+                        style: TextStyle(color: _getStatusColor(title, value))),
+                    const SizedBox(height: 8),
+                    Text('Normal Range: ${biomarkerInfo.normalRange}'),
+                    const SizedBox(height: 8),
+                    Text('Caution: ${biomarkerInfo.caution}'),
+                    const SizedBox(height: 8),
+                    Text('Danger: ${biomarkerInfo.danger}'),
+                    const SizedBox(height: 16),
+                    const Text('Trend Prediction:',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Image.memory(
+                      imageBytes,
+                      height: 200,
+                      fit: BoxFit.contain,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
             ),
+          );
+        } else {
+          print(
+              'Error response: ${response.statusCode} - ${response.body}'); // Debug print
+          _showBasicBiomarkerDetails(title, biomarkerInfo, value);
+        }
+      } catch (e) {
+        print('Error fetching prediction: $e'); // Debug print
+        _showBasicBiomarkerDetails(title, biomarkerInfo, value);
+      }
+    } else {
+      print('Biomarker info is null for: $title'); // Debug print
+    }
+  }
+
+  void _showBasicBiomarkerDetails(
+      String title, BiomarkerInfo biomarkerInfo, dynamic value) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(biomarkerInfo.name),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Status: ${_getStatus(title, value)}',
+                style: TextStyle(color: _getStatusColor(title, value))),
+            const SizedBox(height: 8),
+            Text('Normal Range: ${biomarkerInfo.normalRange}'),
+            const SizedBox(height: 8),
+            Text('Caution: ${biomarkerInfo.caution}'),
+            const SizedBox(height: 8),
+            Text('Danger: ${biomarkerInfo.danger}'),
           ],
         ),
-      );
-    }
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _getStatus(String biomarker, dynamic value) {
@@ -354,18 +472,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: latestData != null
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(latestData!['username'] ?? 'User'),
-                  Text(
-                    latestData!['record_time'] ?? 'No time',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              )
-            : const Text('Dashboard'),
+        title: Row(
+          children: [
+            Expanded(
+              child: latestData != null
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(latestData!['username'] ?? 'User'),
+                        Text(
+                          latestData!['record_time'] ?? 'No time',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    )
+                  : const Text('Dashboard'),
+            ),
+            Image.asset(
+              'assets/logo-no-background.png',
+              height: 40,
+            ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        elevation: 1,
+        iconTheme: const IconThemeData(color: Colors.black87),
+        titleTextStyle: const TextStyle(color: Colors.black87, fontSize: 20),
       ),
       body: error != null
           ? Center(
